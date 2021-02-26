@@ -1,0 +1,56 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: "{{ .Chart.Name }}-{{ .Values.nameOverride.mysql }}"
+  namespace: {{ .Values.namespaceName }}
+  labels:
+    {{- include "wordpress.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "wordpress.mysql.selectorLabels" . | nindent 6 }}
+  serviceName: {{ .Values.mysqlService.name }}
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        {{- include "wordpress.mysql.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: wordpress-mysql
+        image: "{{ .Values.mysqlImage.repository }}:{{ .Values.mysqlImage.tag }}"
+        env:
+          - name: MYSQL_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.secretsName }}
+                key: password
+          - name: MYSQL_DATABASE
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.secretsName }}
+                key: mysql_db_name
+        resources:
+          requests:
+            memory: {{ .Values.resourcesMySQL.requests.memory }}
+            cpu: {{ .Values.resourcesMySQL.requests.cpu }}
+          limits:
+            memory: {{ .Values.resourcesMySQL.limits.memory }}
+            cpu: {{ .Values.resourcesMySQL.limits.cpu }}
+        ports:
+        - containerPort: 3306
+{{- if .Values.storage.persistentStorageEnabled }}
+        volumeMounts:
+          - name: {{ .Values.storage.mysql.persistentVolumeClaimName }}
+            mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+    - metadata:
+        name: {{ .Values.storage.mysql.persistentVolumeClaimName }}
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: "local-storage"
+        resources:
+          requests:
+            storage: {{ .Values.storage.mysql.capacity }}
+{{- end }}

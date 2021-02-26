@@ -1,0 +1,65 @@
+---
+{{- if .Values.storage.persistentStorageEnabled -}}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-storage
+  namespace: {{ .Values.namespaceName }}
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Values.storage.mysql.persistentVolumeName }}
+  namespace: {{ .Values.namespaceName }}
+spec:
+  capacity:
+    storage: {{ .Values.storage.mysql.capacity | quote }}
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  local:
+    path: /tmp/tempmysql
+{{- if .Values.minikubeCompat -}}
+{{ toYaml .Values.minikubeNodeAffinity | nindent 2 }}
+{{- end }}
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Values.storage.wordpress.persistentVolumeName }}
+  namespace: {{ .Values.namespaceName }}
+spec:
+  capacity:
+    storage: {{ .Values.storage.wordpress.capacity }}
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  claimRef:
+    name: {{ .Values.storage.wordpress.persistentVolumeClaimName }}
+    namespace: {{ .Values.namespaceName }}
+  local:
+    path: {{ .Values.storage.wordpress.storagePath }}
+{{- if .Values.minikubeCompat -}}
+{{ toYaml .Values.minikubeNodeAffinity | nindent 2 }}
+{{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.storage.wordpress.persistentVolumeClaimName }}
+  namespace: {{ .Values.namespaceName }}
+spec:
+  storageClassName: "local-storage"
+  resources:
+    requests:
+      storage: {{ .Values.storage.wordpress.capacity }}
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+{{- end }}

@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.wordpressService.name }}
+  namespace: {{ .Values.namespaceName }}
+spec:
+  type: {{ .Values.wordpressService.type }}
+  selector:
+    {{- include "wordpress.selectorLabels" . | nindent 4 }}
+  ports:
+  - port: {{ .Values.wordpressService.targetPort }}
+    targetPort: {{ .Values.wordpressService.targetPort }}
+    {{- if eq .Values.wordpressService.type "NodePort" }}
+    nodePort: {{ .Values.wordpressService.nodePort }}
+    {{- end }}

@@ -1,0 +1,50 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.fullnameOverride.wordpress | quote }}
+  namespace: {{ .Values.nameOverride.wordpress | quote }}
+  labels: 
+    {{- include "wordpress.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "wordpress.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "wordpress.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- if .Values.storage.persistentStorageEnabled }}
+      volumes:
+        - name: {{ .Values.storage.wordpress.persistentVolumeName }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.storage.wordpress.persistentVolumeClaimName }}
+      {{- end }}
+      containers:
+      - name: {{ .Values.fullnameOverride.wordpress }}
+        image: "{{ .Values.wordpressImage.repository }}:{{ .Values.wordpressImage.tag }}"
+        {{- if .Values.storage.persistentStorageEnabled }}
+        volumeMounts:
+          - mountPath: /var/www/html
+            name: {{ .Values.storage.wordpress.persistentVolumeName }}
+        {{- end }}
+        env:
+          - name: WORDPRESS_DB_HOST
+            value: "{{ include "wordpress.mysql.fqdn" . }}:{{ .Values.mysqlService.port }}"
+          - name: WORDPRESS_DB_USER
+            valueFrom:
+              secretKeyRef:
+                name: mysql-access-data
+                key: mysql_user
+          - name: WORDPRESS_DB_NAME
+            value: wordpress
+          - name: WORDPRESS_DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mysql-access-data
+                key: password
+        resources:
+          {{- toYaml .Values.resourcesWordpress | nindent 10 }}
+        ports:
+        - containerPort: {{ .Values.wordpressService.targetPort }}
